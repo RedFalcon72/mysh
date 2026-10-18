@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,9 +46,28 @@ int main(void) {
             continue;
         }
 
+        char *outfile = NULL;
+        for (int i = 0; i < argc; i++) {
+            if (strcmp(argv[i], ">") == 0) {
+                outfile = argv[i + 1];
+                argv[i] = NULL; // ">" 以降を argv から削除
+                break;
+            }
+        }
+
         pid_t pid = fork();
         if (pid == 0) {
-            // 子：コマンドに化ける
+            // 子：コマンドに化け
+            if (outfile) {
+                int fd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                if (fd < 0) {
+                    perror("open");
+                    exit(1);
+                }
+                dup2(fd, 1);
+                close(fd);
+            }
+
             execvp(argv[0], argv);
             perror("exec"); // ここに来たら失敗
             exit(1);
