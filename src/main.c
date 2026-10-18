@@ -21,7 +21,7 @@ static void redirect_out(const char *path) {
 int main(void) {
     char *line = NULL;
     size_t cap = 0;
-
+    signal(SIGINT, SIG_IGN);
     while (1) {
         printf("mysh> ");
         fflush(stdout);
@@ -97,6 +97,7 @@ int main(void) {
                 dup2(fd[1], STDOUT_FILENO);
                 close(fd[0]);
                 close(fd[1]);
+                signal(SIGINT, SIG_DFL);
                 execvp(argv[0], argv);
                 perror("exec");
                 exit(1);
@@ -109,6 +110,7 @@ int main(void) {
                 close(fd[1]);
                 if (outfile)
                     redirect_out(outfile); // > は右（最後）のコマンドに効く
+                signal(SIGINT, SIG_DFL);
                 execvp(right[0], right);
                 perror("exec");
                 exit(1);
@@ -125,6 +127,7 @@ int main(void) {
             if (pid == 0) {
                 if (outfile)
                     redirect_out(outfile);
+                signal(SIGINT, SIG_DFL);
                 execvp(argv[0], argv);
                 perror("exec");
                 exit(1);
