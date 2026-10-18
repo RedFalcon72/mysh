@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,8 +22,13 @@ static void redirect_out(const char *path) {
 int main(void) {
     char *line = NULL;
     size_t cap = 0;
+
     signal(SIGINT, SIG_IGN);
     while (1) {
+        int andflag = 0;
+        while (waitpid(-1, NULL, WNOHANG) > 0)
+            ;
+
         printf("mysh> ");
         fflush(stdout);
 
@@ -49,6 +55,11 @@ int main(void) {
             if (chdir(dir) != 0)
                 perror("cd");
             continue;
+        }
+        //"&"を探す
+        if (strcmp(argv[argc - 1], "&") == 0) {
+            argv[--argc] = NULL;
+            andflag = 1;
         }
 
         // "|" を探して、左右に分ける
@@ -119,8 +130,10 @@ int main(void) {
             // 親も両端を閉じる（忘れると右が終わらず固まる）
             close(fd[0]);
             close(fd[1]);
-            waitpid(p1, NULL, 0);
-            waitpid(p2, NULL, 0);
+            if (andflag == 0) {
+                waitpid(p1, NULL, 0);
+                waitpid(p2, NULL, 0);
+            }
         } else {
             // ---- パイプなし：今まで通り ----
             pid_t pid = fork();
@@ -132,13 +145,13 @@ int main(void) {
                 perror("exec");
                 exit(1);
             } else if (pid > 0) {
-                waitpid(pid, NULL, 0);
+                if (andflag == 0)
+                    waitpid(pid, NULL, 0);
             } else {
                 perror("fork");
             }
         }
     }
-
     free(line);
     return 0;
 }
